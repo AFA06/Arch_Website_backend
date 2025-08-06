@@ -1,0 +1,26 @@
+# Environment & secrets
+.env
+.env.*
+
+# Node modules & builds
+node_modules/
+dist/
+build/
+
+# Logs
+logs/
+*.log
+
+# System & editor files
+.DS_Store
+.vscode/
+.idea/
+
+# OS or runtime-specific
+*.pid
+debug.log
+nohup.out
+
+# Optional: Ignore frontend build if it's inside "website" folder
+website/node_modules/
+website/build/
