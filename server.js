@@ -10,6 +10,8 @@ const websiteAuthRoutes = require("./website/routes/auth");
 const adminUserRoutes = require("./admin/routes/users");
 const adminLoginRoutes = require("./admin/routes/auth"); // Admin login route
 const adminVideoCategoryRoutes = require("./admin/routes/videoCategories");
+const paymentsRoutes = require("./admin/routes/payments"); // ✅ Correct path
+
 
 
 const app = express();
@@ -29,6 +31,7 @@ app.use("/api/admin/videos", videoRoutes);
 app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/admin/auth", adminLoginRoutes); // ✅ Admin login route on separate path
 app.use("/api/admin/video-categories", adminVideoCategoryRoutes);
+app.use("/api/admin/payments", paymentsRoutes);
 
 
 // Health Check

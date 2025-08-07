@@ -1,5 +1,3 @@
-// models/Video.js
-
 const mongoose = require("mongoose");
 
 const videoSchema = new mongoose.Schema(
@@ -35,8 +33,9 @@ const videoSchema = new mongoose.Schema(
     },
 
     category: {
-      type: String,
-      default: "Uncategorized", // Optional improvement
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+      required: true,
     },
 
     access: {

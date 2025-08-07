@@ -15,15 +15,16 @@ const uploadVideoToBunny = async (req, res) => {
       thumbnail,
       price,
       isPreview,
-      categoryName, // from form input
+      categorySlug, // we still receive slug from frontend
     } = req.body;
 
     const videoFile = req.files?.video?.[0];
-    const categoryImageFile = req.files?.categoryImage?.[0];
 
-    if (!videoFile) return res.status(400).json({ message: "No video uploaded" });
+    if (!videoFile) {
+      return res.status(400).json({ message: "No video uploaded" });
+    }
 
-    // 1. Upload video to BunnyCDN
+    // ✅ 1. Upload video to BunnyCDN
     const videoName = videoFile.originalname;
     const videoUploadUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${videoName}`;
 
@@ -36,44 +37,23 @@ const uploadVideoToBunny = async (req, res) => {
 
     const videoUrl = `https://${process.env.BUNNY_STREAM_PULL_ZONE}/${videoName}`;
 
-    // 2. Handle category
-    let category = await Category.findOne({ name: categoryName });
-
+    // ✅ 2. Get category by slug
+    const category = await Category.findOne({ slug: categorySlug });
     if (!category) {
-      // Create new category with uploaded image
-      if (!categoryImageFile) {
-        return res.status(400).json({ message: "Category image required for new category" });
-      }
-
-      const imageName = categoryImageFile.originalname;
-      const categoryUploadUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/categories/${imageName}`;
-
-      await axios.put(categoryUploadUrl, categoryImageFile.buffer, {
-        headers: {
-          AccessKey: process.env.BUNNY_API_KEY,
-          "Content-Type": "application/octet-stream",
-        },
-      });
-
-      const imageCdnUrl = `https://${process.env.BUNNY_STREAM_PULL_ZONE}/categories/${imageName}`;
-
-      category = await Category.create({
-        name: categoryName,
-        image: imageCdnUrl,
-      });
+      return res.status(400).json({ message: "Invalid category selected" });
     }
 
-    // 3. Save video
+    // ✅ 3. Save video (store category._id)
     const video = await Video.create({
       title,
       description,
       access,
-      category: category.name,
+      category: category._id, // ← store as ObjectId reference
       duration,
       instructor,
       thumbnail,
       price,
-      isPreview: isPreview === "true",
+      isPreview: isPreview === "true" || isPreview === true,
       videoUrl,
     });
 
@@ -86,7 +66,10 @@ const uploadVideoToBunny = async (req, res) => {
 
 const getAllVideos = async (req, res) => {
   try {
-    const videos = await Video.find().sort({ createdAt: -1 });
+    const videos = await Video.find()
+      .sort({ createdAt: -1 })
+      .populate("category"); // ✅ optional: populate category data
+
     res.status(200).json({ videos });
   } catch (error) {
     res.status(500).json({ message: "Fetching videos failed" });
