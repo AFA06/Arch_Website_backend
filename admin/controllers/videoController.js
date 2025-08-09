@@ -1,92 +1,99 @@
-// controllers/videoController.js
-
-const Video = require("../../models/Video");
-const Category = require("../../models/Category");
 const axios = require("axios");
+const Video = require("../../models/Video");
+const VideoCategory = require("../../models/Category");
+const fs = require("fs");
+const path = require("path");
 
-const uploadVideoToBunny = async (req, res) => {
+exports.uploadVideo = async (req, res) => {
+  console.log("Received upload request");
   try {
-    const {
-      title,
-      description,
-      access,
-      duration,
-      instructor,
-      thumbnail,
-      price,
-      isPreview,
-      categorySlug, // we still receive slug from frontend
-    } = req.body;
+    const { title, description = "", categoryId } = req.body;
+    const videoFile = req.file;
 
-    const videoFile = req.files?.video?.[0];
-
-    if (!videoFile) {
-      return res.status(400).json({ message: "No video uploaded" });
+    if (!title || !categoryId || !videoFile) {
+      return res.status(400).json({ message: "Missing required fields" });
     }
 
-    // ✅ 1. Upload video to BunnyCDN
-    const videoName = videoFile.originalname;
-    const videoUploadUrl = `https://storage.bunnycdn.com/${process.env.BUNNY_STORAGE_ZONE}/${videoName}`;
+    const category = await VideoCategory.findById(categoryId);
+    if (!category) {
+      return res.status(404).json({ message: "Category not found" });
+    }
 
-    await axios.put(videoUploadUrl, videoFile.buffer, {
+    const videoBuffer = fs.readFileSync(videoFile.path);
+    const ext = path.extname(videoFile.originalname) || ".mp4";
+    const safeTitle = title.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9-_]/g, "");
+    const fileName = `${Date.now()}-${safeTitle}${ext}`;
+
+    const storageZone = process.env.BUNNY_STORAGE_ZONE; // e.g., 'architect-videos'
+    const storageDirectory = process.env.BUNNY_STORAGE_DIRECTORY || ""; // optional folder inside storage zone
+    const directoryPath = storageDirectory ? `${storageDirectory}/` : "";
+
+    const uploadUrl = `https://storage.bunnycdn.com/${storageZone}/${directoryPath}${fileName}`;
+
+    console.log("Uploading video to Bunny.net:", uploadUrl);
+
+    await axios.put(uploadUrl, videoBuffer, {
       headers: {
         AccessKey: process.env.BUNNY_API_KEY,
-        "Content-Type": "application/octet-stream",
+        "Content-Type": videoFile.mimetype || "video/mp4",
+        "Content-Length": videoBuffer.length,
       },
     });
 
-    const videoUrl = `https://${process.env.BUNNY_STREAM_PULL_ZONE}/${videoName}`;
+    const cdnUrlBase = process.env.BUNNY_CDN_URL; // e.g., 'architect-videos.b-cdn.net'
+    const cdnDirectory = storageDirectory ? `${storageDirectory}/` : "";
+    const videoUrl = `https://${cdnUrlBase}/${cdnDirectory}${fileName}`;
 
-    // ✅ 2. Get category by slug
-    const category = await Category.findOne({ slug: categorySlug });
-    if (!category) {
-      return res.status(400).json({ message: "Invalid category selected" });
-    }
+    const newVideo = await Video.create({
+  title,
+  description,
+  category: category._id,
+  videoUrl,
+});
 
-    // ✅ 3. Save video (store category._id)
-    const video = await Video.create({
-      title,
-      description,
-      access,
-      category: category._id, // ← store as ObjectId reference
-      duration,
-      instructor,
-      thumbnail,
-      price,
-      isPreview: isPreview === "true" || isPreview === true,
-      videoUrl,
+
+    fs.unlink(videoFile.path, (err) => {
+      if (err) console.error("Failed to delete temp video file:", err);
+      else console.log("Temp video file deleted");
     });
 
-    res.status(201).json({ video });
+    console.log("Video upload succeeded");
+    res.status(201).json({
+      message: "Video uploaded successfully",
+      video: newVideo,
+    });
   } catch (error) {
-    console.error("Upload error:", error.response?.data || error.message);
-    res.status(500).json({ message: "Video upload failed" });
+    console.error("Video upload error:", error.message || error);
+    res.status(500).json({ message: "Server error", error: error.message || error });
   }
 };
 
-const getAllVideos = async (req, res) => {
+exports.getAllVideos = async (req, res) => {
   try {
-    const videos = await Video.find()
-      .sort({ createdAt: -1 })
-      .populate("category"); // ✅ optional: populate category data
-
-    res.status(200).json({ videos });
+    const videos = await Video.find();
+    res.json(videos);
   } catch (error) {
-    res.status(500).json({ message: "Fetching videos failed" });
+    console.error("getAllVideos error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
-const deleteVideo = async (req, res) => {
+exports.getVideosByCategory = async (req, res) => {
   try {
-    await Video.findByIdAndDelete(req.params.id);
-    res.status(200).json({ message: "Deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ message: "Delete failed" });
-  }
-};
+    const categorySlug = req.params.slug;
 
-module.exports = {
-  uploadVideoToBunny,
-  getAllVideos,
-  deleteVideo,
+    // Find the category document by slug
+    const category = await VideoCategory.findOne({ slug: categorySlug });
+    if (!category) {
+      return res.status(404).json({ message: "Category not found" });
+    }
+
+    // Find videos with this category _id
+    const videos = await Video.find({ category: category._id });
+
+    res.json(videos);
+  } catch (error) {
+    console.error("getVideosByCategory error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
 };

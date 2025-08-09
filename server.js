@@ -4,15 +4,14 @@ const mongoose = require("mongoose");
 require("dotenv").config();
 
 // Import Routes
+const adminCategoryRoutes = require("./admin/routes/adminRoutes");
 const videoRoutes = require("./admin/routes/videoUpload");
 const publicVideoRoutes = require("./admin/routes/publicVideos");
 const websiteAuthRoutes = require("./website/routes/auth");
 const adminUserRoutes = require("./admin/routes/users");
-const adminLoginRoutes = require("./admin/routes/auth"); // Admin login route
+const adminLoginRoutes = require("./admin/routes/auth");
 const adminVideoCategoryRoutes = require("./admin/routes/videoCategories");
-const paymentsRoutes = require("./admin/routes/payments"); // ✅ Correct path
-
-
+const paymentsRoutes = require("./admin/routes/payments");
 
 const app = express();
 
@@ -24,15 +23,15 @@ app.use(express.json());
 
 // Public Website
 app.use("/api/videos", publicVideoRoutes);
-app.use("/api/auth", websiteAuthRoutes); // Website auth (if used)
+app.use("/api/auth", websiteAuthRoutes);
 
 // Admin Panel
+app.use("/api/admin", adminCategoryRoutes); // <-- This serves /api/admin/categories
 app.use("/api/admin/videos", videoRoutes);
 app.use("/api/admin/users", adminUserRoutes);
-app.use("/api/admin/auth", adminLoginRoutes); // ✅ Admin login route on separate path
+app.use("/api/admin/auth", adminLoginRoutes);
 app.use("/api/admin/video-categories", adminVideoCategoryRoutes);
 app.use("/api/admin/payments", paymentsRoutes);
-
 
 // Health Check
 app.get("/ping", (req, res) => res.send("pong"));

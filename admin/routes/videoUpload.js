@@ -1,27 +1,19 @@
-// routes/videoRoutes.js
-
 const express = require("express");
-const multer = require("multer");
-const {
-  uploadVideoToBunny,
-  getAllVideos,
-  deleteVideo,
-} = require("../controllers/videoController");
-
 const router = express.Router();
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
+const videoController = require("../controllers/videoController");
+const { verifyAdminToken } = require("../../middleware/auth");
+const multer = require("multer");
 
-router.post(
-  "/upload",
-  upload.fields([
-    { name: "video", maxCount: 1 },
-    { name: "categoryImage", maxCount: 1 },
-  ]),
-  uploadVideoToBunny
-);
+const upload = multer({ dest: "uploads/" });
 
-router.get("/", getAllVideos);
-router.delete("/:id", deleteVideo);
+// Confirm that controller functions exist
+console.log("uploadVideo:", typeof videoController.uploadVideo);
+console.log("getAllVideos:", typeof videoController.getAllVideos);
+console.log("getVideosByCategory:", typeof videoController.getVideosByCategory);
+
+// Routes
+router.post("/upload", verifyAdminToken, upload.single("file"), videoController.uploadVideo);
+router.get("/", verifyAdminToken, videoController.getAllVideos);
+router.get("/category/:slug", verifyAdminToken, videoController.getVideosByCategory);
 
 module.exports = router;

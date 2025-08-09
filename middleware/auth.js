@@ -1,6 +1,7 @@
+// backend/middleware/auth.js
 const jwt = require("jsonwebtoken");
 
-function verifyAdmin(req, res, next) {
+function verifyAdminToken(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -11,7 +12,6 @@ function verifyAdmin(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    // You can also check if user is admin here if needed
     req.user = decoded;
     next();
   } catch (err) {
@@ -19,4 +19,4 @@ function verifyAdmin(req, res, next) {
   }
 }
 
-module.exports = { verifyAdmin };
+module.exports = { verifyAdminToken };
