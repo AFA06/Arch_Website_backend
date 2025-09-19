@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
-  surname: { type: String, required: true, trim: true },
+  surname: { type: String, trim: true }, // ✅ now optional
   email: {
     type: String,
     required: true,
@@ -20,9 +20,8 @@ const userSchema = new mongoose.Schema({
   resetCode: { type: String, default: null },
   resetCodeExpiry: { type: Date, default: null },
 
-  // ✅ Tracks specific purchased course slugs
   purchasedCourses: {
-    type: [String], // e.g., ['3d-design', 'direction']
+    type: [String],
     default: [],
   },
 }, { timestamps: true });

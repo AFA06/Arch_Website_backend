@@ -1,6 +1,7 @@
 const User = require("../../models/User");
 const Category = require("../../models/Category");
 const Payment = require("../../models/Payment");
+const bcrypt = require("bcryptjs");
 
 const validCourseSlugs = [
   "3d-design",
@@ -50,30 +51,40 @@ exports.getUsers = async (req, res) => {
 // ✅ Add user
 exports.addUser = async (req, res) => {
   try {
-    const { name, surname, email, password } = req.body;
+    const { name, email, password, role } = req.body;
 
-    if (!name || !surname || !email || !password) {
-      return res.status(400).json({ error: "All fields are required" });
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" });
     }
 
-    const existing = await User.findOne({ email });
-    if (existing) return res.status(400).json({ error: "Email already exists" });
+    // Hash the password before saving
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = new User({
       name,
-      surname,
       email,
-      password,
-      isAdmin: false,
-      status: "active",
-      purchasedCourses: [],
+      password: hashedPassword,
+      role: role || "user", // default to "user" if not provided
     });
 
     await newUser.save();
-    res.status(201).json(formatUser(newUser));
-  } catch (err) {
-    console.error("❌ Error adding user:", err);
-    res.status(500).json({ error: "Failed to add user" });
+
+    // Return success and the plain password so admin can send it to the user
+    res.status(201).json({
+      message: "User added successfully",
+      user: {
+        id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        role: newUser.role,
+      },
+      plainPassword: password, // ⚠️ Admin should share this with the user
+    });
+  } catch (error) {
+    console.error("❌ Error adding user:", error);
+    res.status(500).json({ message: "Error adding user" });
   }
 };
 
