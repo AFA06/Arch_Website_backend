@@ -14,6 +14,7 @@ const adminLoginRoutes = require("./admin/routes/auth");
 const adminVideoCategoryRoutes = require("./admin/routes/videoCategories");
 const paymentsRoutes = require("./admin/routes/payments");
 const contactRoutes = require("./website/routes/contact"); // ✅ New contact route
+const courseRoutes = require("./website/routes/courseRoutes");
 
 
 
@@ -29,6 +30,8 @@ app.use(express.json());
 app.use("/api/videos", publicVideoRoutes);
 app.use("/api/auth", websiteAuthRoutes);
 app.use("/api/contact", contactRoutes); // ✅ Contact form route
+app.use("/api/courses", courseRoutes);
+
 
 
 // Admin Panel

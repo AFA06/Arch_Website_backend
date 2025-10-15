@@ -65,7 +65,7 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Email yoki parol noto‘g‘ri' });
 
     const token = jwt.sign(
-      { userId: user._id, email: user.email, isAdmin: user.isAdmin },
+      { id: user._id, email: user.email, isAdmin: user.isAdmin },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
