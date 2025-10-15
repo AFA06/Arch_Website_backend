@@ -1,4 +1,3 @@
-// middleware/requireAuth.js
 const jwt = require("jsonwebtoken");
 
 const requireAuth = (req, res, next) => {
@@ -12,10 +11,17 @@ const requireAuth = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.admin = decoded; // Optional: attach admin info
+
+    // Map decoded.userId → req.user.id for cartController
+    req.user = {
+      id: decoded.userId,
+      email: decoded.email,
+      isAdmin: decoded.isAdmin,
+    };
+
     next();
   } catch (error) {
-    return res.status(401).json({ message: "Unauthorized" });
+    return res.status(401).json({ message: "Unauthorized: Invalid token" });
   }
 };
 

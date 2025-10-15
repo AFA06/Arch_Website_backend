@@ -15,6 +15,8 @@ const adminVideoCategoryRoutes = require("./admin/routes/videoCategories");
 const paymentsRoutes = require("./admin/routes/payments");
 const contactRoutes = require("./website/routes/contact"); // ✅ New contact route
 
+
+
 const app = express();
 
 // Middlewares
@@ -28,6 +30,7 @@ app.use("/api/videos", publicVideoRoutes);
 app.use("/api/auth", websiteAuthRoutes);
 app.use("/api/contact", contactRoutes); // ✅ Contact form route
 
+
 // Admin Panel
 app.use("/api/admin", adminCategoryRoutes);
 app.use("/api/admin/videos", videoRoutes);
@@ -35,6 +38,7 @@ app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/admin/auth", adminLoginRoutes);
 app.use("/api/admin/video-categories", adminVideoCategoryRoutes);
 app.use("/api/admin/payments", paymentsRoutes);
+
 
 // Health Check
 app.get("/ping", (req, res) => res.send("pong"));
