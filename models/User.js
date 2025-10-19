@@ -20,10 +20,45 @@ const userSchema = new mongoose.Schema({
   resetCode: { type: String, default: null },
   resetCodeExpiry: { type: Date, default: null },
 
-  purchasedCourses: {
-    type: [String],
-    default: [],
-  },
+  // Course access - Store course IDs as ObjectId references
+  purchasedCourses: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Course'
+  }],
+  
+  // Course progress tracking
+  courseProgress: [{
+    courseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Course',
+      required: true
+    },
+    completedVideos: [{
+      type: String, // Video IDs
+      default: []
+    }],
+    lastWatchedVideo: {
+      type: String,
+      default: null
+    },
+    progressPercentage: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100
+    },
+    lastAccessed: {
+      type: Date,
+      default: Date.now
+    }
+  }]
 }, { timestamps: true });
+
+// Method to check if user has access to a course
+userSchema.methods.hasCourseAccess = function(courseId) {
+  return this.purchasedCourses.some(
+    course => course.toString() === courseId.toString()
+  );
+};
 
 module.exports = mongoose.model('User', userSchema);

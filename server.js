@@ -13,9 +13,9 @@ const adminUserRoutes = require("./admin/routes/users");
 const adminLoginRoutes = require("./admin/routes/auth");
 const adminVideoCategoryRoutes = require("./admin/routes/videoCategories");
 const paymentsRoutes = require("./admin/routes/payments");
-const contactRoutes = require("./website/routes/contact"); // ✅ New contact route
-
-
+const contactRoutes = require("./website/routes/contact");
+const courseRoutes = require("./website/routes/courseRoutes");
+const adminCourseRoutes = require("./admin/routes/courses"); // Admin course management
 
 const app = express();
 
@@ -23,13 +23,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Serve static files (uploads)
+app.use("/uploads", express.static("uploads"));
+
 // ✅ Route Mounts
 
 // Public Website
 app.use("/api/videos", publicVideoRoutes);
 app.use("/api/auth", websiteAuthRoutes);
-app.use("/api/contact", contactRoutes); // ✅ Contact form route
-
+app.use("/api/contact", contactRoutes);
+app.use("/api/courses", courseRoutes);
 
 // Admin Panel
 app.use("/api/admin", adminCategoryRoutes);
@@ -38,6 +41,7 @@ app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/admin/auth", adminLoginRoutes);
 app.use("/api/admin/video-categories", adminVideoCategoryRoutes);
 app.use("/api/admin/payments", paymentsRoutes);
+app.use("/api/admin/courses", adminCourseRoutes); // Admin course management
 
 
 // Health Check

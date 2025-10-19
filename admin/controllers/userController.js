@@ -1,21 +1,12 @@
 const User = require("../../models/User");
-const Category = require("../../models/Category");
+const Course = require("../../models/Course");
 const Payment = require("../../models/Payment");
 const bcrypt = require("bcryptjs");
-
-const validCourseSlugs = [
-  "3d-design",
-  "figma",
-  "direction",
-  "web-dev",
-  "animation",
-  "branding"
-];
-
+const mongoose = require("mongoose");
 
 const formatUser = (user) => ({
   id: user._id,
-  name: `${user.name} ${user.surname}`,
+  name: `${user.name} ${user.surname || ""}`.trim(),
   email: user.email,
   purchasedCourses: user.purchasedCourses || [],
   status: user.status,
@@ -92,54 +83,96 @@ exports.addUser = async (req, res) => {
 exports.grantCourseAccess = async (req, res) => {
   try {
     const userId = req.params.id;
-    const { courseSlug } = req.body;
+    const { courseId } = req.body;
 
-    if (!courseSlug || typeof courseSlug !== "string") {
-      return res.status(400).json({ error: "Course slug must be a valid string" });
+    if (!courseId) {
+      return res.status(400).json({ 
+        success: false,
+        error: "Course ID is required" 
+      });
+    }
+
+    // Validate courseId
+    if (!mongoose.Types.ObjectId.isValid(courseId)) {
+      return res.status(400).json({ 
+        success: false,
+        error: "Invalid course ID" 
+      });
     }
 
     const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ error: "User not found" });
-
-    // 🔥 Find course by slug (not title)
-    const course = await Category.findOne({ slug: courseSlug });
-    if (!course) return res.status(404).json({ error: "Course not found in Category" });
-
-    // Grant access if not already granted
-    if (!Array.isArray(user.purchasedCourses)) {
-      user.purchasedCourses = [];
-    }
-
-    let accessGranted = false;
-    if (!user.purchasedCourses.includes(courseSlug)) {
-      user.purchasedCourses.push(courseSlug);
-      await user.save();
-      accessGranted = true;
-
-      // Create payment record
-      const newPayment = new Payment({
-        userId: user._id,
-        userName: `${user.name} ${user.surname}`,
-        userEmail: user.email,
-        courseSlug,
-        courseTitle: course.title,
-        amount: course.price,
-        method: "Telegram",
-        status: "completed",
-        date: new Date(),
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        error: "User not found" 
       });
-
-      await newPayment.save();
     }
+
+    // Find course by ID
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ 
+        success: false,
+        error: "Course not found" 
+      });
+    }
+
+    // Check if user already has this course
+    const hasAccess = user.hasCourseAccess(courseId);
+    if (hasAccess) {
+      return res.status(400).json({
+        success: false,
+        error: "User already has access to this course",
+      });
+    }
+
+    // Grant access
+    user.purchasedCourses.push(courseId);
+
+    // Initialize progress tracking
+    user.courseProgress.push({
+      courseId: courseId,
+      completedVideos: [],
+      progressPercentage: 0,
+      lastAccessed: new Date(),
+    });
+
+    await user.save();
+
+    // Increment students enrolled count
+    course.studentsEnrolled += 1;
+    await course.save();
+
+    // Create payment record
+    const newPayment = new Payment({
+      userId: user._id,
+      userName: `${user.name} ${user.surname || ""}`.trim(),
+      userEmail: user.email,
+      courseSlug: course.slug,
+      courseTitle: course.title,
+      amount: course.price,
+      method: "Telegram",
+      status: "completed",
+      date: new Date(),
+    });
+
+    await newPayment.save();
 
     return res.json({
-      message: accessGranted
-        ? `✅ Access to '${courseSlug}' granted and payment recorded.`
-        : `ℹ️ User already has access to '${courseSlug}'.`,
+      success: true,
+      message: `Course "${course.title}" assigned to ${user.name} successfully`,
+      data: {
+        userId: user._id,
+        courseId: course._id,
+        courseName: course.title,
+      },
     });
   } catch (err) {
     console.error("❌ grantCourseAccess error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return res.status(500).json({ 
+      success: false,
+      error: "Server error while granting course access" 
+    });
   }
 };
 
@@ -148,22 +181,49 @@ exports.grantCourseAccess = async (req, res) => {
 exports.removeCourseAccess = async (req, res) => {
   try {
     const { id } = req.params;
-    const { courseSlug } = req.body;
+    const { courseId } = req.body;
 
-    if (!courseSlug) {
-      return res.status(400).json({ error: "Course slug is required" });
+    if (!courseId) {
+      return res.status(400).json({ 
+        success: false,
+        error: "Course ID is required" 
+      });
     }
 
     const user = await User.findById(id);
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        error: "User not found" 
+      });
+    }
 
-    user.purchasedCourses = user.purchasedCourses.filter(slug => slug !== courseSlug);
+    // Remove course from purchasedCourses
+    user.purchasedCourses = user.purchasedCourses.filter(
+      (cId) => cId.toString() !== courseId.toString()
+    );
+
+    // Remove course progress
+    user.courseProgress = user.courseProgress.filter(
+      (progress) => progress.courseId.toString() !== courseId.toString()
+    );
+
     await user.save();
 
-    res.json({ message: "Course access removed", purchasedCourses: user.purchasedCourses });
+    res.json({ 
+      success: true,
+      message: "Course access removed successfully",
+      data: {
+        userId: user._id,
+        purchasedCourses: user.purchasedCourses,
+      }
+    });
   } catch (err) {
     console.error("❌ Remove course error:", err);
-    res.status(500).json({ error: "Server error while removing course access" });
+    res.status(500).json({ 
+      success: false,
+      error: "Server error while removing course access" 
+    });
   }
 };
 
@@ -200,24 +260,22 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
-// ✅ Toggle all course access (premium)
-exports.togglePremium = async (req, res) => {
+// ✅ Get all available courses for assignment
+exports.getAvailableCourses = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
-    if (!user || user.isAdmin) {
-      return res.status(404).json({ error: "User not found" });
-    }
+    const courses = await Course.find({ isActive: true })
+      .select("_id title slug type price thumbnail")
+      .sort({ createdAt: -1 });
 
-    if (user.purchasedCourses.length === validCourseSlugs.length) {
-      user.purchasedCourses = [];
-    } else {
-      user.purchasedCourses = validCourseSlugs;
-    }
-
-    await user.save();
-    res.json(formatUser(user));
+    res.json({
+      success: true,
+      data: courses,
+    });
   } catch (err) {
-    console.error("❌ Error toggling premium:", err);
-    res.status(500).json({ error: "Failed to toggle premium" });
+    console.error("❌ Error fetching courses:", err);
+    res.status(500).json({ 
+      success: false,
+      error: "Failed to fetch courses" 
+    });
   }
 };
