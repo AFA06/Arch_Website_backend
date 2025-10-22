@@ -241,6 +241,22 @@ exports.deleteCourse = async (req, res) => {
       });
     }
 
+    const courseId = course._id;
+
+    // ✅ TASK 1: Remove course from all users who have access to it
+    const User = require("../../models/User");
+    await User.updateMany(
+      { purchasedCourses: courseId },
+      { 
+        $pull: { 
+          purchasedCourses: courseId,
+          courseProgress: { courseId: courseId }
+        }
+      }
+    );
+
+    console.log(`✅ Removed course ${courseId} from all users`);
+
     // Delete thumbnail file
     if (course.thumbnail) {
       const thumbnailPath = path.join(__dirname, "../../", course.thumbnail);
@@ -265,7 +281,7 @@ exports.deleteCourse = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Course deleted successfully",
+      message: "Course deleted successfully and removed from all users",
     });
   } catch (error) {
     console.error("Delete course error:", error);

@@ -9,6 +9,7 @@ const adminCategoryRoutes = require("./admin/routes/adminRoutes");
 const videoRoutes = require("./admin/routes/videoUpload");
 const publicVideoRoutes = require("./admin/routes/publicVideos");
 const websiteAuthRoutes = require("./website/routes/auth");
+const userProfileRoutes = require("./website/routes/userProfile");
 const adminUserRoutes = require("./admin/routes/users");
 const adminLoginRoutes = require("./admin/routes/auth");
 const adminVideoCategoryRoutes = require("./admin/routes/videoCategories");
@@ -16,6 +17,7 @@ const paymentsRoutes = require("./admin/routes/payments");
 const contactRoutes = require("./website/routes/contact");
 const courseRoutes = require("./website/routes/courseRoutes");
 const adminCourseRoutes = require("./admin/routes/courses"); // Admin course management
+const adminDashboardRoutes = require("./admin/routes/dashboard");
 
 const app = express();
 
@@ -31,6 +33,7 @@ app.use("/uploads", express.static("uploads"));
 // Public Website
 app.use("/api/videos", publicVideoRoutes);
 app.use("/api/auth", websiteAuthRoutes);
+app.use("/api/user", userProfileRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/courses", courseRoutes);
 
@@ -42,6 +45,7 @@ app.use("/api/admin/auth", adminLoginRoutes);
 app.use("/api/admin/video-categories", adminVideoCategoryRoutes);
 app.use("/api/admin/payments", paymentsRoutes);
 app.use("/api/admin/courses", adminCourseRoutes); // Admin course management
+app.use("/api/admin/dashboard", adminDashboardRoutes);
 
 
 // Health Check

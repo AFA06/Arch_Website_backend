@@ -19,6 +19,14 @@ const userSchema = new mongoose.Schema({
   },
   resetCode: { type: String, default: null },
   resetCodeExpiry: { type: Date, default: null },
+  image: { type: String, default: null },
+  
+  // Email change verification
+  emailChangeRequest: {
+    newEmail: { type: String },
+    verificationCode: { type: String },
+    expiresAt: { type: Date }
+  },
 
   // Course access - Store course IDs as ObjectId references
   purchasedCourses: [{

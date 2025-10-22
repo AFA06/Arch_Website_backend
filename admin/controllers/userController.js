@@ -6,11 +6,12 @@ const mongoose = require("mongoose");
 
 const formatUser = (user) => ({
   id: user._id,
-  name: `${user.name} ${user.surname || ""}`.trim(),
+  name: user.name || "",
+  surname: user.surname || "",
   email: user.email,
   purchasedCourses: user.purchasedCourses || [],
   status: user.status,
-  joinDate: user.createdAt,
+  createdAt: user.createdAt,
 });
 
 // ✅ Get users
@@ -42,40 +43,41 @@ exports.getUsers = async (req, res) => {
 // ✅ Add user
 exports.addUser = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, surname, email, password, role } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
+      return res.status(400).json({ error: "User already exists" });
     }
 
     // Hash the password before saving
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // ✅ TASK 2: Save both name AND surname
     const newUser = new User({
       name,
+      surname: surname || "", // Include surname field
       email,
       password: hashedPassword,
       role: role || "user", // default to "user" if not provided
+      isAdmin: false,
+      status: "active",
+      purchasedCourses: [],
+      courseProgress: [],
     });
 
     await newUser.save();
 
-    // Return success and the plain password so admin can send it to the user
+    // Return success with formatted user data
     res.status(201).json({
       message: "User added successfully",
-      user: {
-        id: newUser._id,
-        name: newUser.name,
-        email: newUser.email,
-        role: newUser.role,
-      },
+      user: formatUser(newUser),
       plainPassword: password, // ⚠️ Admin should share this with the user
     });
   } catch (error) {
     console.error("❌ Error adding user:", error);
-    res.status(500).json({ message: "Error adding user" });
+    res.status(500).json({ error: "Error adding user" });
   }
 };
 
