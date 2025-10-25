@@ -18,6 +18,7 @@ const contactRoutes = require("./website/routes/contact");
 const courseRoutes = require("./website/routes/courseRoutes");
 const adminCourseRoutes = require("./admin/routes/courses"); // Admin course management
 const adminDashboardRoutes = require("./admin/routes/dashboard");
+const announcementRoutes = require("./admin/routes/announcementRoutes");
 
 const app = express();
 
@@ -46,6 +47,7 @@ app.use("/api/admin/video-categories", adminVideoCategoryRoutes);
 app.use("/api/admin/payments", paymentsRoutes);
 app.use("/api/admin/courses", adminCourseRoutes); // Admin course management
 app.use("/api/admin/dashboard", adminDashboardRoutes);
+app.use("/api/admin/announcements", announcementRoutes);
 
 
 // Health Check
