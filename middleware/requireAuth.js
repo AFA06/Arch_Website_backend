@@ -12,9 +12,9 @@ const requireAuth = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Map decoded.userId → req.user.id for cartController
+    // Map decoded.id → req.user.id
     req.user = {
-      id: decoded.userId,
+      id: decoded.id,
       email: decoded.email,
       isAdmin: decoded.isAdmin,
     };

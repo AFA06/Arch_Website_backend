@@ -12,11 +12,12 @@ const { adminAuth } = require('../../middleware/adminAuth');
  */
 router.get('/stats', adminAuth, async (req, res) => {
   try {
-    // Get total users
-    const totalUsers = await User.countDocuments();
+    // Get total users (excluding admin users to match Users page logic)
+    const totalUsers = await User.countDocuments({ isAdmin: false });
     
-    // Get premium users (users with purchased courses)
+    // Get premium users (users with purchased courses, excluding admin users)
     const premiumUsers = await User.countDocuments({
+      isAdmin: false,
       purchasedCourses: { $exists: true, $not: { $size: 0 } }
     });
     
@@ -73,7 +74,8 @@ router.get('/stats', adminAuth, async (req, res) => {
     const userRegistrations = await User.aggregate([
       {
         $match: {
-          createdAt: { $gte: oneYearAgo }
+          createdAt: { $gte: oneYearAgo },
+          isAdmin: false
         }
       },
       {
@@ -133,10 +135,12 @@ router.get('/stats', adminAuth, async (req, res) => {
     
     // Calculate user growth percentage (current month vs previous month)
     const usersThisMonth = await User.countDocuments({
-      createdAt: { $gte: startOfMonth }
+      createdAt: { $gte: startOfMonth },
+      isAdmin: false
     });
     const usersPrevMonth = await User.countDocuments({
-      createdAt: { $gte: startOfPrevMonth, $lt: endOfPrevMonth }
+      createdAt: { $gte: startOfPrevMonth, $lt: endOfPrevMonth },
+      isAdmin: false
     });
     const userGrowth = usersPrevMonth > 0
       ? Math.round(((usersThisMonth - usersPrevMonth) / usersPrevMonth) * 100)
@@ -144,10 +148,12 @@ router.get('/stats', adminAuth, async (req, res) => {
     
     // Calculate premium user growth
     const premiumUsersThisMonth = await User.countDocuments({
+      isAdmin: false,
       purchasedCourses: { $exists: true, $not: { $size: 0 } },
       updatedAt: { $gte: startOfMonth }
     });
     const premiumUsersPrevMonth = await User.countDocuments({
+      isAdmin: false,
       purchasedCourses: { $exists: true, $not: { $size: 0 } },
       updatedAt: { $gte: startOfPrevMonth, $lt: endOfPrevMonth }
     });

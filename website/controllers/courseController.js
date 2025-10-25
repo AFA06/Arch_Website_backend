@@ -14,9 +14,9 @@ const getMyCourses = async (req, res) => {
 
     // Find user and populate purchased courses
     const user = await User.findById(userId).populate({
-      path: "purchasedCourses",
+      path: "purchasedCourses.courseId",
       match: { isActive: true }, // Only return active courses
-      select: "title slug description type thumbnail videos price totalDuration category",
+      select: "title slug description type thumbnail videos price totalDuration category accessDuration",
     });
 
     if (!user) {
@@ -27,7 +27,8 @@ const getMyCourses = async (req, res) => {
     }
 
     // Enhance courses with progress information
-    const coursesWithProgress = user.purchasedCourses.map((course) => {
+    const coursesWithProgress = user.purchasedCourses.map((purchase) => {
+      const course = purchase.courseId;
       const courseProgress = user.courseProgress.find(
         (progress) => progress.courseId.toString() === course._id.toString()
       );
@@ -44,6 +45,10 @@ const getMyCourses = async (req, res) => {
         lastAccessed: courseProgress ? courseProgress.lastAccessed : null,
         description: course.description,
         category: course.category,
+        accessDuration: purchase.accessDuration,
+        assignedAt: purchase.assignedAt,
+        expiresAt: purchase.expiresAt,
+        isExpired: purchase.expiresAt <= new Date()
       };
     });
 
@@ -97,7 +102,7 @@ const getCourseBySlug = async (req, res) => {
     if (!hasAccess) {
       return res.status(403).json({
         success: false,
-        message: "You do not have access to this course",
+        message: "You do not have access to this course or your access has expired",
       });
     }
 
@@ -248,12 +253,23 @@ const assignCourseToUser = async (req, res) => {
     if (user.hasCourseAccess(courseId)) {
       return res.status(400).json({
         success: false,
-        message: "User already has access to this course",
+        message: "User already has active access to this course",
       });
     }
 
-    // Add course to user's purchased courses
-    user.purchasedCourses.push(courseId);
+    // Calculate expiration date based on course access duration
+    const assignedAt = new Date();
+    const accessDurationMonths = course.accessDuration || 12;
+    const expiresAt = new Date(assignedAt);
+    expiresAt.setMonth(expiresAt.getMonth() + accessDurationMonths);
+
+    // Add course to user's purchased courses with duration info
+    user.purchasedCourses.push({
+      courseId: courseId,
+      assignedAt: assignedAt,
+      accessDuration: accessDurationMonths,
+      expiresAt: expiresAt
+    });
 
     // Initialize progress tracking
     user.courseProgress.push({
@@ -313,7 +329,7 @@ const updateCourseProgress = async (req, res) => {
     if (!user.hasCourseAccess(course._id)) {
       return res.status(403).json({
         success: false,
-        message: "You do not have access to this course",
+        message: "You do not have access to this course or your access has expired",
       });
     }
 
@@ -385,16 +401,83 @@ const updateCourseProgress = async (req, res) => {
  */
 const createCourse = async (req, res) => {
   try {
-    const courseData = req.body;
+    const {
+      title,
+      description,
+      type,
+      price,
+      category,
+      instructor,
+      level,
+      totalDuration,
+      accessDuration,
+      videoUrl,
+      videoTitle,
+      videoDuration
+    } = req.body;
+
+    // Generate slug from title
+    const slug = title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .trim();
 
     // Check if slug already exists
-    const existingCourse = await Course.findOne({ slug: courseData.slug });
+    const existingCourse = await Course.findOne({ slug });
     if (existingCourse) {
       return res.status(400).json({
         success: false,
         message: "Course with this slug already exists",
       });
     }
+
+    let videoData = [];
+
+    // Handle single video
+    if (type === "single") {
+      if (req.files?.video) {
+        // File upload
+        const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5050}`;
+        videoData = [{
+          title: videoTitle || title,
+          url: `${baseUrl}/uploads/videos/${req.files.video[0].filename}`,
+          duration: videoDuration || "0:00",
+          order: 0
+        }];
+      } else if (videoUrl) {
+        // URL upload
+        videoData = [{
+          title: videoTitle || title,
+          url: videoUrl,
+          duration: videoDuration || "0:00",
+          order: 0
+        }];
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: "Video file or URL is required for single video courses",
+        });
+      }
+    }
+
+    // Create course data
+    const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5050}`;
+    const courseData = {
+      title,
+      slug,
+      description,
+      type,
+      price: parseFloat(price) || 0,
+      category: category || "",
+      instructor: instructor || "",
+      level: level || "beginner",
+      totalDuration: totalDuration || "0 hours",
+      accessDuration: parseInt(accessDuration) || 12,
+      videos: videoData,
+      thumbnail: req.files?.thumbnail ? `${baseUrl}/uploads/thumbnails/${req.files.thumbnail[0].filename}` : ""
+    };
 
     const course = await Course.create(courseData);
 

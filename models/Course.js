@@ -81,6 +81,12 @@ const courseSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    accessDuration: {
+      type: Number,
+      required: [true, "Access duration is required"],
+      enum: [6, 9, 12],
+      default: 12,
+    },
   },
   {
     timestamps: true,

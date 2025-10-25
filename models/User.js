@@ -28,10 +28,25 @@ const userSchema = new mongoose.Schema({
     expiresAt: { type: Date }
   },
 
-  // Course access - Store course IDs as ObjectId references
+  // Course access - Store course IDs with assignment dates
   purchasedCourses: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Course'
+    courseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Course',
+      required: true
+    },
+    assignedAt: {
+      type: Date,
+      default: Date.now
+    },
+    accessDuration: {
+      type: Number, // Duration in months
+      required: true
+    },
+    expiresAt: {
+      type: Date,
+      required: true
+    }
   }],
   
   // Course progress tracking
@@ -64,8 +79,10 @@ const userSchema = new mongoose.Schema({
 
 // Method to check if user has access to a course
 userSchema.methods.hasCourseAccess = function(courseId) {
+  const now = new Date();
   return this.purchasedCourses.some(
-    course => course.toString() === courseId.toString()
+    course => course.courseId.toString() === courseId.toString() &&
+              course.expiresAt > now
   );
 };
 

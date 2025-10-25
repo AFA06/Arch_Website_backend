@@ -70,7 +70,18 @@ router.post('/login', async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    // ✅ Return user object with token
+    // Populate purchased courses to get the full objects
+    const populatedUser = await User.findById(user._id).populate({
+      path: 'purchasedCourses.courseId',
+      select: 'title slug category type'
+    });
+
+    // ✅ Return user object with token and active purchased courses
+    const now = new Date();
+    const activeCourses = populatedUser.purchasedCourses.filter(purchase =>
+      purchase.courseId && purchase.expiresAt > now
+    );
+
     res.status(200).json({
       token,
       user: {
@@ -78,7 +89,9 @@ router.post('/login', async (req, res) => {
         name: user.name,
         surname: user.surname,
         email: user.email,
+        image: user.image,
         isAdmin: user.isAdmin,
+        purchasedCourses: activeCourses.map(purchase => purchase.courseId.toString())
       },
       message: 'Kirish muvaffaqiyatli amalga oshirildi',
     });

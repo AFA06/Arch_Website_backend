@@ -1,8 +1,10 @@
 // admin/controllers/courseController.js
 const Course = require("../../models/Course");
+const User = require("../../models/User");
 const slugify = require("slugify");
 const fs = require("fs");
 const path = require("path");
+const mongoose = require("mongoose");
 
 /**
  * @desc    Get all courses (admin view)
@@ -231,10 +233,15 @@ exports.updateCourse = async (req, res) => {
  * @access  Private/Admin
  */
 exports.deleteCourse = async (req, res) => {
+  const session = await mongoose.startSession();
+
   try {
-    const course = await Course.findById(req.params.id);
+    await session.startTransaction();
+
+    const course = await Course.findById(req.params.id).session(session);
 
     if (!course) {
+      await session.abortTransaction();
       return res.status(404).json({
         success: false,
         message: "Course not found",
@@ -242,20 +249,44 @@ exports.deleteCourse = async (req, res) => {
     }
 
     const courseId = course._id;
+    const courseTitle = course.title;
 
-    // ✅ TASK 1: Remove course from all users who have access to it
-    const User = require("../../models/User");
-    await User.updateMany(
-      { purchasedCourses: courseId },
-      { 
-        $pull: { 
-          purchasedCourses: courseId,
-          courseProgress: { courseId: courseId }
-        }
-      }
+    // ✅ Enhanced: Remove course from all users who have access to it with statistics
+
+    // Get count of users before removal
+    const usersBefore = await User.countDocuments(
+      { "purchasedCourses.courseId": courseId },
+      { session }
     );
 
-    console.log(`✅ Removed course ${courseId} from all users`);
+    // Remove course from all users' purchasedCourses and courseProgress
+    const updateResult = await User.updateMany(
+      { "purchasedCourses.courseId": courseId },
+      {
+        $pull: {
+          purchasedCourses: { courseId: courseId },
+          courseProgress: { courseId: courseId }
+        }
+      },
+      { session }
+    );
+
+    // Get count of users after removal to verify
+    const usersAfter = await User.countDocuments(
+      { "purchasedCourses.courseId": courseId },
+      { session }
+    );
+
+    const usersAffected = usersBefore - usersAfter;
+
+    // Decrement studentsEnrolled count for the course
+    await Course.findByIdAndUpdate(
+      courseId,
+      { $inc: { studentsEnrolled: -updateResult.modifiedCount } },
+      { session }
+    );
+
+    console.log(`✅ Removed course ${courseId} from ${usersAffected} users`);
 
     // Delete thumbnail file
     if (course.thumbnail) {
@@ -277,19 +308,34 @@ exports.deleteCourse = async (req, res) => {
       });
     }
 
-    await Course.findByIdAndDelete(req.params.id);
+    // Delete the course itself
+    await Course.findByIdAndDelete(req.params.id).session(session);
+
+    await session.commitTransaction();
 
     res.status(200).json({
       success: true,
       message: "Course deleted successfully and removed from all users",
+      data: {
+        courseTitle,
+        courseId,
+        usersAffected,
+        filesDeleted: {
+          thumbnail: !!course.thumbnail,
+          videos: course.videos?.filter(v => v.url?.startsWith("/uploads/videos/")).length || 0
+        }
+      }
     });
   } catch (error) {
+    await session.abortTransaction();
     console.error("Delete course error:", error);
     res.status(500).json({
       success: false,
       message: "Server error while deleting course",
       error: error.message,
     });
+  } finally {
+    await session.endSession();
   }
 };
 

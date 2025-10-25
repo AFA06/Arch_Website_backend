@@ -1,29 +1,15 @@
 const express = require("express");
 const router = express.Router();
-const requireAuth = require("../../middleware/requireAuth");
-const Payment = require("../../models/Payment");
+const paymentController = require("../controllers/paymentController");
+const { adminAuth } = require("../../middleware/adminAuth");
 
-router.get("/", requireAuth, async (req, res) => {
-  try {
-    const payments = await Payment.find().sort({ date: -1 });
+// Get all payments with filtering and pagination
+router.get("/", adminAuth, paymentController.getAllPayments);
 
-    const formattedPayments = payments.map((payment) => ({
-      _id: payment._id,
-      userName: payment.userName,
-      email: payment.userEmail,     // ✅ mapped to match frontend
-      amount: payment.amount,
-      currency: "UZS",              // ✅ hardcoded for frontend
-      method: payment.method,
-      status: payment.status,
-      date: payment.date,
-      courseSlug: payment.courseSlug,
-    }));
+// Get payment statistics
+router.get("/stats", adminAuth, paymentController.getPaymentStats);
 
-    res.json(formattedPayments);
-  } catch (err) {
-    console.error("Error fetching payments:", err);
-    res.status(500).json({ error: "Server error" });
-  }
-});
+// Get available months for filtering
+router.get("/months", adminAuth, paymentController.getAvailableMonths);
 
 module.exports = router;
