@@ -7,10 +7,9 @@ const announcementSchema = new mongoose.Schema({
   expiryDate: { type: Date },
   status: { type: String, enum: ["active", "inactive"], default: "active" },
   createdDate: { type: Date, default: Date.now },
-  audience: {
-    type: String,
-    enum: ["all", "premium", "free", "notLoggedIn"],
-    default: "all",
+  recipients: {
+    type: [String], // ['premium', 'free', 'all']
+    default: ["all"],
   },
 });
 

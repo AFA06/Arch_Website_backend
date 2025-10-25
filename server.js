@@ -2,6 +2,7 @@
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
+const http = require("http");
 require("dotenv").config();
 
 // Import Routes
@@ -19,6 +20,9 @@ const courseRoutes = require("./website/routes/courseRoutes");
 const adminCourseRoutes = require("./admin/routes/courses"); // Admin course management
 const adminDashboardRoutes = require("./admin/routes/dashboard");
 const announcementRoutes = require("./admin/routes/announcementRoutes");
+
+// Import Announcement controller to init Socket.IO
+const { initSocket } = require("./admin/controllers/announcementController");
 
 const app = express();
 
@@ -49,7 +53,6 @@ app.use("/api/admin/courses", adminCourseRoutes); // Admin course management
 app.use("/api/admin/dashboard", adminDashboardRoutes);
 app.use("/api/admin/announcements", announcementRoutes);
 
-
 // Health Check
 app.get("/ping", (req, res) => res.send("pong"));
 
@@ -59,8 +62,42 @@ mongoose
   .then(() => console.log("✅ Connected to MongoDB"))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-// Start Server
+// Create HTTP server
+const server = http.createServer(app);
+
+// Initialize Socket.IO
+const { Server } = require("socket.io");
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Replace with your frontend URL in production
+    methods: ["GET", "POST"],
+  },
+});
+
+// Pass Socket.IO instance to announcement controller
+initSocket(io);
+
+// Handle Socket.IO connections
+io.on("connection", (socket) => {
+  // Only log errors in production
+  if (process.env.NODE_ENV !== "production") {
+    console.log("⚡ New client connected:", socket.id);
+  }
+
+  socket.on("disconnect", () => {
+    if (process.env.NODE_ENV !== "production") {
+      console.log("Client disconnected:", socket.id);
+    }
+  });
+
+  socket.on("error", (err) => {
+    console.error("Socket.IO error:", err);
+  });
+});
+
+
+// Start server
 const PORT = process.env.PORT || 5050;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`✅ Server running at http://localhost:${PORT}`);
 });
