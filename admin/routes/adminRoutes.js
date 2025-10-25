@@ -1,16 +1,19 @@
 const express = require("express");
-const router = express.Router();
-const Category = require("../../models/Category"); // ✅ fixed import
+const {
+  getAnnouncements,
+  createAnnouncement,
+  toggleAnnouncementStatus,
+  deleteAnnouncement,
+} = require("../controllers/announcementController");
+const { protect, verifyAdmin } = require("../../middleware/authMiddleware");
 
-// GET all categories
-router.get("/categories", async (req, res) => {
-  try {
-    const categories = await Category.find().sort({ createdAt: -1 });
-    res.status(200).json({ categories });
-  } catch (err) {
-    console.error("Error fetching categories:", err);
-    res.status(500).json({ error: "Failed to fetch categories" });
-  }
-});
+const router = express.Router();
+
+// Public route
+router.get("/", getAnnouncements);
+
+// Admin-only routes
+router.patch("/toggle/:id", protect, verifyAdmin, toggleAnnouncementStatus);
+router.delete("/:id", protect, verifyAdmin, deleteAnnouncement);
 
 module.exports = router;

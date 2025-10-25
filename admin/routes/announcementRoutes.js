@@ -1,24 +1,17 @@
 const express = require("express");
-const router = express.Router();
 const {
   getAnnouncements,
   createAnnouncement,
-  updateAnnouncement,
+  toggleAnnouncementStatus,
   deleteAnnouncement,
-  toggleStatus
 } = require("../controllers/announcementController");
+const { protect, verifyAdmin } = require("../../middleware/authMiddleware");
 
-const { protect, admin } = require("../../middleware/authMiddleware");
+const router = express.Router();
 
-// Protect all routes
-router.use(protect); // Verify JWT & set req.user
-router.use(admin);   // Must be admin
-
-// CRUD routes
 router.get("/", getAnnouncements);
-router.post("/", createAnnouncement);
-router.put("/:id", updateAnnouncement);
-router.delete("/:id", deleteAnnouncement);
-router.patch("/:id/toggle-status", toggleStatus);
+router.post("/", protect, verifyAdmin, createAnnouncement);
+router.patch("/toggle/:id", protect, verifyAdmin, toggleAnnouncementStatus);
+router.delete("/:id", protect, verifyAdmin, deleteAnnouncement);
 
 module.exports = router;
