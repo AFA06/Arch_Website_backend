@@ -27,6 +27,8 @@ const initializeMainAdmin = async () => {
         email: MAIN_ADMIN.email,
         password: hashedPassword,
         isAdmin: true,
+        adminRole: "main",
+        companyId: null,
         status: "active",
         purchasedCourses: [],
         courseProgress: [],
@@ -72,25 +74,29 @@ router.post("/login", async (req, res) => {
 
     // Create JWT token
     const token = jwt.sign(
-      { 
+      {
         id: admin._id,
-        email: admin.email, 
-        isAdmin: true 
-      }, 
-      process.env.JWT_SECRET || "your-secret-key", 
+        email: admin.email,
+        isAdmin: true,
+        adminRole: admin.adminRole || 'main', // default to 'main' for backward compatibility
+        companyId: admin.companyId
+      },
+      process.env.JWT_SECRET || "your-secret-key",
       {
         expiresIn: "24h",
       }
     );
 
-    return res.json({ 
+    return res.json({
       success: true,
       token,
       user: {
         id: admin._id,
         email: admin.email,
         name: admin.name,
-        isAdmin: true
+        isAdmin: true,
+        adminRole: admin.adminRole || 'main',
+        companyId: admin.companyId
       }
     });
   } catch (error) {

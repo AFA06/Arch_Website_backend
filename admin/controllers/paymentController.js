@@ -10,9 +10,16 @@ const User = require("../../models/User");
 exports.getAllPayments = async (req, res) => {
   try {
     const { month, year, status, search, page = 1, limit = 10 } = req.query;
+    const adminRole = req.user.adminRole || 'main';
+    const adminCompanyId = req.user.companyId;
 
     // Build query object
     const query = {};
+
+    // Apply company filter for company admins
+    if (adminRole === 'company') {
+      query.companyId = adminCompanyId;
+    }
 
     // Filter by status
     if (status && status !== "all") {
@@ -65,12 +72,18 @@ exports.getAllPayments = async (req, res) => {
       _id: payment._id,
       userName: payment.userName,
       email: payment.userEmail,
-      amount: payment.amount,
+      amount: adminRole === 'company' ? payment.companyShare : payment.amount, // Company admins see their share
       currency: "UZS",
       method: payment.method,
       status: payment.status,
       date: payment.date,
       courseSlug: payment.courseSlug,
+      // Add revenue sharing info for main admin
+      ...(adminRole === 'main' && {
+        companyShare: payment.companyShare,
+        platformShare: payment.platformShare,
+        totalAmount: payment.amount
+      })
     }));
 
     // Calculate pagination info

@@ -20,6 +20,7 @@ const courseRoutes = require("./website/routes/courseRoutes");
 const adminCourseRoutes = require("./admin/routes/courses");
 const adminDashboardRoutes = require("./admin/routes/dashboard");
 const announcementRoutes = require("./admin/routes/announcementRoutes");
+const companyRoutes = require("./admin/routes/company");
 
 // Import Announcement controller to init Socket.IO
 const { initSocket } = require("./admin/controllers/announcementController");
@@ -50,6 +51,7 @@ app.use("/api/admin/payments", paymentsRoutes);
 app.use("/api/admin/courses", adminCourseRoutes);
 app.use("/api/admin/dashboard", adminDashboardRoutes);
 app.use("/api/admin/announcements", announcementRoutes);
+app.use("/api/admin/companies", companyRoutes);
 
 // Health Check
 app.get("/ping", (req, res) => res.send("pong"));

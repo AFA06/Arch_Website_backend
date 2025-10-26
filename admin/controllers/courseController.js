@@ -90,6 +90,8 @@ exports.createCourse = async (req, res) => {
       instructor,
       level,
       totalDuration,
+      ownerType, // "platform" or "company"
+      companyId, // Company ID if ownerType is "company"
       videoUrl, // For single video courses
       videoTitle, // For single video courses
       videoDuration, // For single video courses
@@ -105,6 +107,31 @@ exports.createCourse = async (req, res) => {
         success: false,
         message: "Course with this title already exists",
       });
+    }
+
+    // Validate owner type and company assignment
+    let finalOwnerType = ownerType || "platform";
+    let finalCompanyId = null;
+
+    if (finalOwnerType === "company") {
+      if (!companyId) {
+        return res.status(400).json({
+          success: false,
+          message: "Company ID is required for company-owned courses",
+        });
+      }
+
+      // Verify company exists
+      const Company = require("../../models/Company");
+      const company = await Company.findById(companyId);
+      if (!company) {
+        return res.status(404).json({
+          success: false,
+          message: "Company not found",
+        });
+      }
+
+      finalCompanyId = companyId;
     }
 
     // Handle thumbnail upload
@@ -125,6 +152,8 @@ exports.createCourse = async (req, res) => {
       level: level || "beginner",
       totalDuration: totalDuration || "0 hours",
       thumbnail: thumbnailPath,
+      ownerType: finalOwnerType,
+      companyId: finalCompanyId,
       isActive: true,
       videos: [],
     };

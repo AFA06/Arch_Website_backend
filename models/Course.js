@@ -68,6 +68,16 @@ const courseSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    ownerType: {
+      type: String,
+      enum: ["platform", "company"],
+      default: "platform", // "platform" for main admin owned, "company" for company owned
+    },
+    companyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Company',
+      default: null, // null for platform courses, ObjectId for company courses
+    },
     totalDuration: {
       type: String,
       default: "0 hours",

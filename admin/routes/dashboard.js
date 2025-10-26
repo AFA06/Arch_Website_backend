@@ -12,6 +12,12 @@ const { adminAuth } = require('../../middleware/adminAuth');
  */
 router.get('/stats', adminAuth, async (req, res) => {
   try {
+    const adminRole = req.user.adminRole || 'main';
+    const adminCompanyId = req.user.companyId;
+
+    // Build filter for company admins
+    const companyFilter = adminRole === 'company' ? { companyId: adminCompanyId } : {};
+
     // Get total users (excluding admin users to match Users page logic)
     const totalUsers = await User.countDocuments({ isAdmin: false });
     
@@ -27,17 +33,27 @@ router.get('/stats', adminAuth, async (req, res) => {
     // Get monthly revenue (current month)
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const revenueMatchConditions = {
+      status: 'completed',
+      createdAt: { $gte: startOfMonth }
+    };
+
+    // For company admins, only show their company share
+    if (adminRole === 'company') {
+      revenueMatchConditions.companyId = adminCompanyId;
+      // Calculate revenue based on company share for company admins
+    }
+
     const monthlyRevenue = await Payment.aggregate([
       {
-        $match: {
-          status: 'completed',
-          createdAt: { $gte: startOfMonth }
-        }
+        $match: revenueMatchConditions
       },
       {
         $group: {
           _id: null,
-          total: { $sum: '$amount' }
+          total: adminRole === 'company'
+            ? { $sum: '$companyShare' } // Company admins see their share
+            : { $sum: '$amount' } // Main admin sees total revenue
         }
       }
     ]);
@@ -45,17 +61,26 @@ router.get('/stats', adminAuth, async (req, res) => {
     // Get previous month's revenue for comparison
     const startOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const endOfPrevMonth = startOfMonth;
+    const prevRevenueMatchConditions = {
+      status: 'completed',
+      createdAt: { $gte: startOfPrevMonth, $lt: endOfPrevMonth }
+    };
+
+    // Apply same company filter for consistency
+    if (adminRole === 'company') {
+      prevRevenueMatchConditions.companyId = adminCompanyId;
+    }
+
     const prevMonthRevenue = await Payment.aggregate([
       {
-        $match: {
-          status: 'completed',
-          createdAt: { $gte: startOfPrevMonth, $lt: endOfPrevMonth }
-        }
+        $match: prevRevenueMatchConditions
       },
       {
         $group: {
           _id: null,
-          total: { $sum: '$amount' }
+          total: adminRole === 'company'
+            ? { $sum: '$companyShare' } // Company admins see their share
+            : { $sum: '$amount' } // Main admin sees total revenue
         }
       }
     ]);
@@ -103,12 +128,19 @@ router.get('/stats', adminAuth, async (req, res) => {
     });
     
     // Get revenue by month (last 12 months)
+    const chartRevenueMatchConditions = {
+      status: 'completed',
+      createdAt: { $gte: oneYearAgo }
+    };
+
+    // Apply company filter for chart data
+    if (adminRole === 'company') {
+      chartRevenueMatchConditions.companyId = adminCompanyId;
+    }
+
     const revenueByMonth = await Payment.aggregate([
       {
-        $match: {
-          status: 'completed',
-          createdAt: { $gte: oneYearAgo }
-        }
+        $match: chartRevenueMatchConditions
       },
       {
         $group: {
@@ -116,7 +148,9 @@ router.get('/stats', adminAuth, async (req, res) => {
             year: { $year: '$createdAt' },
             month: { $month: '$createdAt' }
           },
-          revenue: { $sum: '$amount' }
+          revenue: adminRole === 'company'
+            ? { $sum: '$companyShare' } // Company admins see their share
+            : { $sum: '$amount' } // Main admin sees total revenue
         }
       },
       {

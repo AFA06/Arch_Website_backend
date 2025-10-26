@@ -22,11 +22,13 @@ const adminAuth = async (req, res, next) => {
 
       // Check if it's an admin token
       if (decoded.isAdmin === true) {
-        // Set admin user object
+        // Set admin user object with role information
         req.user = {
           id: decoded.id,
           email: decoded.email,
-          isAdmin: true
+          isAdmin: true,
+          adminRole: decoded.adminRole || 'main', // default to 'main' for backward compatibility
+          companyId: decoded.companyId || null
         };
         next();
       } else {

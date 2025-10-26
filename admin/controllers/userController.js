@@ -164,14 +164,31 @@ exports.grantCourseAccess = async (req, res) => {
     course.studentsEnrolled += 1;
     await course.save();
 
-    // Create payment record
+    // Calculate revenue sharing based on course ownership
+    let companyShare = 0;
+    let platformShare = course.price;
+    let paymentCompanyId = null;
+
+    if (course.ownerType === "company") {
+      // 50/50 split for company-owned courses
+      companyShare = Math.floor(course.price / 2);
+      platformShare = course.price - companyShare;
+      paymentCompanyId = course.companyId;
+    }
+
+    // Create payment record with revenue splitting
     const newPayment = new Payment({
       userId: user._id,
       userName: `${user.name} ${user.surname || ""}`.trim(),
       userEmail: user.email,
+      courseId: course._id,
       courseSlug: course.slug,
       courseTitle: course.title,
       amount: course.price,
+      companyShare,
+      platformShare,
+      companyId: paymentCompanyId,
+      assignedByAdminId: req.user.id,
       method: "Telegram",
       status: "completed",
       date: new Date(),
@@ -310,9 +327,76 @@ exports.getAvailableCourses = async (req, res) => {
     });
   } catch (err) {
     console.error("❌ Error fetching courses:", err);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      error: "Failed to fetch courses" 
+      error: "Failed to fetch courses"
     });
+  }
+};
+
+// ✅ Create company admin
+exports.createCompanyAdmin = async (req, res) => {
+  try {
+    const { name, surname, email, password, companyId } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !password || !companyId) {
+      return res.status(400).json({
+        error: "Name, email, password, and company ID are required"
+      });
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ error: "User already exists" });
+    }
+
+    // Verify company exists
+    const Company = require("../../models/Company");
+    const company = await Company.findById(companyId);
+    if (!company) {
+      return res.status(404).json({ error: "Company not found" });
+    }
+
+    // Hash the password
+    const bcrypt = require("bcryptjs");
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create company admin
+    const newAdmin = new User({
+      name,
+      surname: surname || "",
+      email,
+      password: hashedPassword,
+      isAdmin: true,
+      adminRole: "company",
+      companyId: companyId,
+      status: "active",
+      purchasedCourses: [],
+      courseProgress: [],
+    });
+
+    await newAdmin.save();
+
+    // Return success with formatted user data (excluding password)
+    res.status(201).json({
+      message: "Company admin created successfully",
+      user: {
+        id: newAdmin._id,
+        name: newAdmin.name,
+        surname: newAdmin.surname,
+        email: newAdmin.email,
+        adminRole: newAdmin.adminRole,
+        companyId: newAdmin.companyId,
+        isAdmin: true,
+        status: newAdmin.status,
+        createdAt: newAdmin.createdAt
+      },
+      plainPassword: password, // For admin to share with the company admin
+    });
+  } catch (error) {
+    console.error("❌ Error creating company admin:", error);
+    res.status(500).json({ error: "Error creating company admin" });
   }
 };

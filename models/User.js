@@ -12,6 +12,16 @@ const userSchema = new mongoose.Schema({
   },
   password: { type: String, required: true },
   isAdmin: { type: Boolean, default: false },
+  adminRole: {
+    type: String,
+    enum: ["main", "company"],
+    default: null, // null for regular users, "main" for main admin, "company" for company admins
+  },
+  companyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
+    default: null, // null for main admin and regular users, ObjectId for company admins
+  },
   status: {
     type: String,
     enum: ["active", "suspended"],

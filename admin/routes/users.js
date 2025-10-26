@@ -3,6 +3,8 @@ const express = require("express");
 const router = express.Router();
 const userController = require("../controllers/userController");
 const requireAuth = require("../../middleware/requireAuth");
+const { adminAuth } = require("../../middleware/adminAuth");
+const { mainAdminOnly } = require("../../middleware/roleAuth");
 
 // Test route
 router.get("/test", (req, res) => res.send("✅ Admin Users Route is Working!"));
@@ -17,5 +19,8 @@ router.post("/:id/remove-course", requireAuth, userController.removeCourseAccess
 router.post("/", userController.addUser);
 router.put("/:id/status", userController.toggleStatus);
 router.delete("/:id", userController.deleteUser);
+
+// ✅ Company admin creation (only main admin)
+router.post("/create-company-admin", adminAuth, mainAdminOnly, userController.createCompanyAdmin);
 
 module.exports = router;
